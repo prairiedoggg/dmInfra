@@ -23,7 +23,7 @@ worker_node_machine_type_prod = "e2-standard-2" # 기본값(e2-medium)과 다른
 prod_labels = {
   environment = "production"
   app_tier    = "backend"
-  version     = "v1.0"
+  version     = "v1-0"
 } # 기본값과 다른 라벨 사용 시₩
 
 # --- k3s 워커 노드 설정 (매우 민감한 정보 포함 가능, 보안 주의) ---
