@@ -1,133 +1,28 @@
-name: 'Terraform CD for Infra Repo'
+name: 'Terraform CD for Production Infra' # 변경: Workflow 이름 명확화
 
 on:
   push:
     branches:
       - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
-  workflow_dispatch: # 수동 실행 허용
+  workflow_dispatch: # 수동 실행 허용 (Prod 환경에 대한 수동 실행)
 
 permissions:
   contents: read
   id-token: write   # OIDC 토큰 요청에 필수
-  pull-requests: write # PR 코멘트에 plan 결과 작성 시 필요
+  # pull-requests: write # Prod 전용이므로 PR 코멘트 불필요
 
 jobs:
-  terraform-plan-dev: # 작업 이름 명확화 (develop 환경용 plan)
-    name: 'Terraform Plan (Dev/Staging)'
-    # develop 브랜치로의 push 또는 main/develop 대상 PR일 때 실행
-    if: (github.event_name == 'push' && github.ref_name == 'develop') || (github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'develop'))
-    runs-on: ubuntu-latest
-    environment: develop
-
-    env:
-      GCP_PROJECT_NUMBER: ${{ secrets.GCP_DEV_PROJECT_NUMBER }}
-      GCP_WORKLOAD_IDENTITY_POOL_ID: ${{ secrets.GCP_WORKLOAD_IDENTITY_POOL_ID }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER_ID: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
-      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_DEV_SERVICE_ACCOUNT_EMAIL }} # 수정: 주석 해제 및 올바른 Secret 사용
-      # TF_LOG: "DEBUG" # 필요시 주석 해제
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: 'Debug: Print Environment Variables'
-      run: |
-        echo "Workflow triggered by: ${{ github.event_name }}, ref: ${{ github.ref_name }}, base_ref: ${{ github.base_ref }}"
-        echo "GCP_PROJECT_NUMBER is set: ${{ env.GCP_PROJECT_NUMBER != '' }}"
-        echo "GCP_SERVICE_ACCOUNT_EMAIL is set: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL != '' }}"
-
-    - name: 'Authenticate to Google Cloud (Dev/Staging)'
-      id: auth_dev
-      uses: 'google-github-actions/auth@v2'
-      with:
-        workload_identity_provider: 'projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ env.GCP_WORKLOAD_IDENTITY_POOL_ID }}/providers/${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}'
-        service_account: '${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}'
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-
-    - name: 'Debug: Show files in dev environment directory'
-      run: |
-        pwd
-        ls -la ./environments/dev
-      working-directory: .
-
-    - name: Terraform Init (Dev/Staging)
-      run: terraform init
-      working-directory: ./environments/dev # 수정: ./dmInfra/ 제거
-
-    - name: Terraform Validate (Dev/Staging)
-      run: terraform validate
-      working-directory: ./environments/dev # 수정: ./dmInfra/ 제거
-
-    - name: Terraform Plan (Dev/Staging)
-      id: plan_dev
-      run: |
-        terraform plan \
-          -var-file="terraform.tfvars" \
-          -input=false \
-          -no-color \
-          -out=tfplan \
-          > plan.txt
-      working-directory: ./environments/dev # 수정: ./dmInfra/ 제거
-      continue-on-error: true
-
-    - name: Comment PR with Terraform Plan
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const fs = require('fs');
-          let planOutput = 'No plan output captured.';
-          try {
-            planOutput = fs.readFileSync('./environments/dev/plan.txt', 'utf8'); // 수정: ./dmInfra/ 제거
-          } catch (e) {
-            console.error('Error reading plan.txt:', e);
-            planOutput = 'Error reading plan.txt. See action logs for details.';
-          }
-          const truncatedPlan = planOutput.substring(0, 65000);
-          const output = `#### Terraform Plan for Dev/Staging Environment 📖
-          <details><summary>Show Plan</summary>
-          \`\`\`terraform
-          ${truncatedPlan}
-          \`\`\`
-          </details>
-          *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Ref: \`${{ github.ref }}\`*`;
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: output
-          });
-
-    - name: Upload Terraform Plan Artifact (Dev/Staging)
-      if: steps.plan_dev.outcome == 'success' # Plan 성공 시에만 업로드
-      uses: actions/upload-artifact@v4
-      with:
-        name: tfplan-dev
-        path: ./environments/dev/tfplan # 수정: ./dmInfra/ 제거
-
-    - name: Terraform Plan Exit Code
-      run: exit ${{ steps.plan_dev.outcome == 'failure' && 1 || 0 }}
-
   terraform-apply-prod:
-    name: 'Terraform Apply to Production'
-    if: github.event_name == 'push' && github.ref_name == 'main'
+    name: 'Terraform Plan & Apply to Production' # 변경: 작업 이름에 Plan 포함
+    if: github.event_name == 'push' && github.ref_name == 'main' # 명시적으로 main 푸시일 때만 실행
     runs-on: ubuntu-latest
     environment: production
-    # needs: [terraform-plan-dev] # Main 브랜치 푸시 시 dev plan에 의존할 필요 없음. prod 자체 plan/apply 수행
 
     env:
       GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROD_PROJECT_NUMBER }}
-      GCP_WORKLOAD_IDENTITY_POOL_ID: ${{ secrets.GCP_WORKLOAD_IDENTITY_POOL_ID }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER_ID: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}
-      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_PROD_SERVICE_ACCOUNT_EMAIL }} # 수정: 주석 해제 및 올바른 Secret 사용
+      GCP_WORKLOAD_IDENTITY_POOL_ID: ${{ secrets.GCP_WORKLOAD_IDENTITY_POOL_ID }} # Prod/Dev 공용일 수 있으나, Prod용으로 명시
+      GCP_WORKLOAD_IDENTITY_PROVIDER_ID: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }} # Prod/Dev 공용일 수 있으나, Prod용으로 명시
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_PROD_SERVICE_ACCOUNT_EMAIL }}
       TF_VAR_k3s_url_prod: ${{ secrets.K3S_PROD_URL }}
       TF_VAR_k3s_token_prod: ${{ secrets.K3S_PROD_TOKEN }}
       # TF_LOG: "DEBUG" # 필요시 주석 해제
@@ -147,7 +42,7 @@ jobs:
       uses: 'google-github-actions/auth@v2'
       with:
         workload_identity_provider: 'projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ env.GCP_WORKLOAD_IDENTITY_POOL_ID }}/providers/${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER_ID }}'
-        service_account: '${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}' # 수정: 주석 해제
+        service_account: '${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}'
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -160,7 +55,11 @@ jobs:
 
     - name: Terraform Init (Production)
       run: terraform init
-      working-directory: ./environments/prod # 수정: ./dmInfra/ 제거
+      working-directory: ./environments/prod
+
+    - name: Terraform Validate (Production) # 추가: Apply 전 Validate 실행
+      run: terraform validate
+      working-directory: ./environments/prod
 
     - name: Terraform Plan (Production) # Apply 전 항상 Plan 실행
       id: plan_prod
@@ -168,20 +67,35 @@ jobs:
         terraform plan \
           -var-file="terraform.tfvars" \
           -input=false \
+          -no-color \
           -out=tfplan-prod
-      working-directory: ./environments/prod # 수정: ./dmInfra/ 제거
+      working-directory: ./environments/prod
+      # continue-on-error: true # Apply 전 Plan은 실패하면 중단되어야 함
 
-    # Manual Approval (이 부분은 그대로 두겠습니다. 필요하시면 주석 해제하고 설정하세요)
+    - name: Upload Terraform Plan Artifact (Production) # 추가: Prod Plan 결과도 아티팩트로 저장
+      if: steps.plan_prod.outcome == 'success' # Plan 성공 시에만 업로드
+      uses: actions/upload-artifact@v4
+      with:
+        name: tfplan-prod
+        path: ./environments/prod/tfplan-prod
+
     # - name: Manual Approval for Production Deployment
+    #   if: steps.plan_prod.outcome == 'success' # Plan 성공 시에만 승인 대기
     #   uses: trstringer/manual-approval@v1
     #   with:
-    #     secret: ${{ github.TOKEN }}
-    #     approvers: 'your-github-username'
-    #     minimum-approvals: 1
+    #     secret: ${{ github.TOKEN }} # GITHUB_TOKEN 사용 권장
+    #     approvers: 'your-github-username,another-approver' # 승인자 목록
+    #     minimum-approvals: 1 # 최소 승인자 수
     #     issue-title: "PROD Deployment: Terraform Apply Approval Required for main branch"
-    #     issue-body: "Review the Terraform plan for production (see run artifacts or output of 'Terraform Plan (Production)' step) and approve/reject."
+    #     issue-body: "Review the Terraform plan for production (see run artifacts or output of 'Terraform Plan (Production)' step) and approve/reject this deployment."
+    #     # 추가 옵션:
+    #     # timeout-minutes: 30
+    #     # approve-message: "Deployment to production approved."
+    #     # reject-message: "Deployment to production rejected."
 
     - name: Terraform Apply (Production)
-      if: steps.plan_prod.outcome == 'success' # Plan 성공 시에만 Apply
-      run: terraform apply -input=false tfplan-prod
-      working-directory: ./environments/prod # 수정: ./dmInfra/ 제거
+      if: steps.plan_prod.outcome == 'success' # 그리고 (필요시) manual approval 성공
+      # 만약 Manual Approval 스텝을 사용한다면:
+      # if: steps.plan_prod.outcome == 'success' && steps.manual_approval_step_id.outputs.status == 'approved' # manual_approval_step_id는 해당 스텝의 id
+      run: terraform apply -input=false -auto-approve tfplan-prod # -auto-approve 추가 (plan 파일 사용 시)
+      working-directory: ./environments/prod
