@@ -43,7 +43,7 @@ variable "worker_node_machine_type_prod" {
 variable "worker_node_boot_disk_image_prod" {
   description = "운영 환경 워커 노드의 부팅 디스크 이미지"
   type        = string
-  default     = "ubuntu-os-cloud/ubuntu-2004-lts" # 운영체제 및 버전 확인 필요
+  default     = "ubuntu-os-cloud/ubuntu-2204-lts" # 운영체제 및 버전 확인 필요
 }
 
 variable "prod_tags" {
