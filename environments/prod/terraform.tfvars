@@ -16,7 +16,7 @@ worker_node_count_prod = 5 # 기본값(3)과 다른 워커 노드 수 지정 시
 
 worker_node_machine_type_prod = "e2-standard-2" # 기본값(e2-medium)과 다른 머신 타입 지정 시
 
-worker_node_boot_disk_image_prod = "projects/ubuntu-os-cloud/globㄴal/images/family/ubuntu-2204-lts" # 우분투 22.04 이미지 사용
+  worker_node_boot_disk_image_prod = "projects/ubuntu-os-cloud/globㄴal/images/family/ubuntu-2204-lts" # 우분투 22.04 이미지 사용
 
 # prod_tags = ["production", "webserver"] # 기본값과 다른 태그 사용 시
 
