@@ -12,7 +12,7 @@ gcp_region     = "asia-northeast3"
 # gcp_network_name = "prod-vpc-network" # 기본값 'default' 대신 사용할 경우
 # gcp_subnetwork_name = "prod-subnet-01" # 특정 서브넷 지정 시
 
-worker_node_count_prod = 6 # 기본값(3)과 다른 워커 노드 수 지정 시
+worker_node_count_prod = 5 # 기본값(3)과 다른 워커 노드 수 지정 시
 
 worker_node_machine_type_prod = "e2-standard-2" # 기본값(e2-medium)과 다른 머신 타입 지정 시
 
