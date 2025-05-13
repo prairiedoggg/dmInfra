@@ -27,8 +27,14 @@ resource "google_compute_instance" "worker" {
   }
 
   # k3s_url 과 k3s_token 이 제공되었을 경우에만 시작 스크립트 실행
-metadata_startup_script = var.use_k3s ?
-  templatefile("${path.module}/k3s_agent.tpl", {
-    k3s_url   = var.k3s_url
-    k3s_token = var.k3s_token
-  }) : null
+metadata_startup_script = (
+  var.k3s_url != null && var.k3s_token != null ?
+  <<-EOT
+    #!/bin/bash
+    sleep 10   # 네트워크 준비 대기
+    export K3S_URL="${var.k3s_url}"
+    export K3S_TOKEN="${var.k3s_token}"
+    curl -sfL https://get.k3s.io | sh -   # k3s agent 설치
+  EOT
+  : null
+)
