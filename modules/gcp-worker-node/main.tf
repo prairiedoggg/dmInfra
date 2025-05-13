@@ -27,15 +27,8 @@ resource "google_compute_instance" "worker" {
   }
 
   # k3s_url 과 k3s_token 이 제공되었을 경우에만 시작 스크립트 실행
-  metadata_startup_script = (var.k3s_url != null && var.k3s_token != null) ? <<-EOT
-    #!/bin/bash
-    sleep 10 # 간단한 네트워크 준비 대기
-    export K3S_URL="${var.k3s_url}"
-    export K3S_TOKEN="${var.k3s_token}"
-    curl -sfL https://get.k3s.io | sh - # k3s 에이전트 설치 및 실행
-    EOT 
-    : null
-
-  # 필요한 경우 추가 설정 (예: startup script)
-  # metadata_startup_script = "echo hi > /test.txt"
-}
+metadata_startup_script = var.use_k3s ?
+  templatefile("${path.module}/k3s_agent.tpl", {
+    k3s_url   = var.k3s_url
+    k3s_token = var.k3s_token
+  }) : null
