@@ -38,3 +38,5 @@ metadata_startup_script = (
   EOT
   : null
 )
+
+}
