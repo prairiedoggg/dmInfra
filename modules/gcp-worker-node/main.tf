@@ -33,7 +33,7 @@ resource "google_compute_instance" "worker" {
     export K3S_URL="${var.k3s_url}"
     export K3S_TOKEN="${var.k3s_token}"
     curl -sfL https://get.k3s.io | sh - # k3s 에이전트 설치 및 실행
-  EOT : null
+    EOT : null
 
   # 필요한 경우 추가 설정 (예: startup script)
   # metadata_startup_script = "echo hi > /test.txt"
