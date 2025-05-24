@@ -32,9 +32,8 @@ metadata_startup_script = (
   <<-EOT
     #!/bin/bash
     sleep 10   # 네트워크 준비 대기
-    export K3S_URL="${var.k3s_url}"
-    export K3S_TOKEN="${var.k3s_token}"
-    curl -sfL https://get.k3s.io | sh -   # k3s agent 설치
+    curl -sfL https://get.k3s.io | K3S_URL="${var.k3s_url}" K3S_TOKEN="${var.k3s_token}" sh -
+
   EOT
   : null
 )
