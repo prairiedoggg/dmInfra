@@ -7,6 +7,7 @@ resource "google_compute_instance" "worker" {
   tags         = var.tags
   labels       = var.labels
 
+
   boot_disk {
     initialize_params {
       image = var.boot_disk_image
