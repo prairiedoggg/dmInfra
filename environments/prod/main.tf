@@ -43,9 +43,9 @@ module "gcp_prod_workers" {
 
 # --- Backend Configuration (Optional but Recommended for Prod) ---
 # Terraform 상태 파일을 원격 스토리지(예: GCS)에 안전하게 저장합니다.
-# terraform {
-#   backend "gcs" {
-#     bucket  = "<your-unique-terraform-state-bucket-name-for-prod>" # 고유한 버킷 이름으로 변경
-#     prefix  = "prod/compute" # 상태 파일 경로 (예시)
-#   }
-# } 
+terraform {
+  backend "gcs" {
+    bucket  = "redream-terraform-state-prod" 
+    prefix  = "terraform/prod/state" 
+  }
+} 
