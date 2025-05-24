@@ -4,4 +4,3 @@ terraform {
     prefix = "terraform/prod/state"
   }
 }
-
